@@ -288,7 +288,3 @@ custom-python-scheduler/
 ├── examples/
 └── tests/
 ```
-
----
-
-Bu README, mevcut kodla uyumlu olacak şekilde yazılmıştır; davranış değişikliklerinde ilgili bölümleri güncellemeyi unutmayın.
