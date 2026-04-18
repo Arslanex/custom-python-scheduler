@@ -46,7 +46,7 @@ Bu doküman hem **ne işe yaradığını** hem de **nasıl düşündüğünü** 
 
 ### `interval` (Job)
 
-- **Ne:** **Cron ifadesi boşken** kullanılır: iş bir kez **baarıyla veya hata ile** bittikten sonra bir sonraki çalışma zamanı `datetime.now() + interval` saniye olarak ayarlanır.
+- **Ne:** **Cron ifadesi boşken** kullanılır: iş bir kez **başarıyla veya hata ile** bittikten sonra bir sonraki çalışma zamanı `datetime.now() + interval` saniye olarak ayarlanır.
 - **Birim:** Saniye (`float`).
 
 ### `cron` (Job)
@@ -78,7 +78,7 @@ flowchart TB
     T --> TR[trigger]
   end
 
-  subgraph worker["İşçi thread (runner)"]
+  subgraph worker["Worker thread runner"]
     TR --> SEM[BoundedSemaphore.acquire]
     SEM --> RJ[_run_job]
     RJ --> FN[job.func iç thread]
@@ -92,26 +92,25 @@ flowchart TB
 - **`trigger`:** Önce havuzda yer açana kadar **semafor bekler**, sonra `_run_job` için kısa ömürlü bir thread başlatır.
 - **`_run_job`:** Gerçek fonksiyonu (timeout için) ayrı bir iç thread’de çalıştırır; bitince sonucu kaydeder ve `schedule_next` ile bir sonraki zamanı yazar.
 
-Detaylı akış:
+Detaylı akış (tek tur; her `tick` tekrarlanır — GitHub Mermaid çakışmasın diye katılımcı adı `Loop` kullanılmaz, `loop` anahtar kelimesiyle karışıyordu):
 
 ```mermaid
 sequenceDiagram
-  participant Loop as _loop
+  participant Main as _loop
   participant Tick as _tick_jobs
-  participant Tr as trigger
-  participant Sem as BoundedSemaphore
+  participant Trg as trigger
+  participant Sem as semaphore
   participant Run as _run_job
   participant Job as Job
 
-  loop her tick
-    Loop->>Tick: due işleri listele
-    Tick->>Tr: trigger(isim)
-    Tr->>Sem: acquire (slot yoksa bekler)
-    Tr->>Run: thread başlat
-    Run->>Job: çalıştır / kaydet
-    Run->>Job: schedule_next
-    Sem->>Sem: release (runner finally)
-  end
+  Main->>Tick: list due job names
+  Tick->>Trg: trigger name
+  Note over Trg,Sem: blocks until a worker slot is free
+  Trg->>Sem: acquire
+  Trg->>Run: start runner thread
+  Run->>Job: execute func, record result
+  Run->>Job: schedule_next
+  Run->>Sem: release in runner finally
 ```
 
 ---
